@@ -58,6 +58,7 @@ class Ui_Interface(object):
         self.pg02_bt_voltar = QtWidgets.QPushButton(self.pg02_pos_inicial)
         self.pg02_bt_voltar.setGeometry(QtCore.QRect(20, 110, 141, 31))
         self.pg02_bt_voltar.setObjectName("pg02_bt_voltar")
+        #self.pg02_bt_voltar.setVisible(False)
         
         self.pg02_lista_empresas = QtWidgets.QListWidget(self.pg02_pos_inicial)
         self.pg02_lista_empresas.setGeometry(QtCore.QRect(200, 10, 256, 141))
@@ -133,12 +134,15 @@ class Ui_Interface(object):
             for _ in range(num_items):
                 self.pg02_lista_empresas.takeItem(0)
                 
-    async def pg02_bt_verific_visibilidade(self, visible:bool):
+    async def pg02_bt_verific_visibilidade(self, visible:bool) -> None:
         self.pg02_bt_verific_empre.setVisible(visible)
         self.pg02_bt_voltar.setVisible(visible)
     
-    async def pg01_bt_carregar_arquivo_visibilidade(self, visible:bool):
+    async def pg01_bt_carregar_arquivo_visibilidade(self, visible:bool) -> None:
         self.pg01_bt_carregar_arquivo.setVisible(visible)
+        
+    async def pg02_bt_iniciar_visibilidade(self, visible) -> None:
+        self.pg02_bt_iniciar.setVisible(visible)
             
         
         

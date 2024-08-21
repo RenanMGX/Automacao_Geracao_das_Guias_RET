@@ -1,5 +1,5 @@
 from Entities.files import FilesManipulate, pd
-from Entities.navegador import SicalcReceita
+from Entities.navegador import SicalcReceita, TimeoutException, NoSuchElementException, InvalidSessionIdException
 from typing import List, Dict, Literal, Coroutine, Any
 from Entities.dependencies.functions import P
 from Entities.interface import Ui_Interface, QtWidgets
@@ -43,13 +43,20 @@ class Execute(Ui_Interface):
         self.__navegador: SicalcReceita = SicalcReceita()
     
     def pg02_action_voltar(self) -> None:
-        asyncio.create_task(self.mudar_pagina('Inicial'))
-        del self.excel_file
+        async def voltar_async(self:Execute):
+            await self.pg01_print_aviso(reset=True)
+            await self.pg02_print_infor(reset=True)
+            await self.pg02_list_limpar_items()
+            await self.mudar_pagina('Inicial')
+            del self.excel_file
+            
+        asyncio.create_task(voltar_async(self))
         
     async def initial_config(self):
         self.pg01_bt_carregar_arquivo.clicked.connect(self.carregar_excel)
         self.pg02_bt_verific_empre.clicked.connect(self.fazer_verificacao_empresas)
         self.pg02_bt_voltar.clicked.connect(self.pg02_action_voltar)
+        self.pg02_bt_iniciar.clicked.connect(self.iniciar_gerar_guias)
         #self.telas.setCurrentIndex(1)
         
     def teste(self):
@@ -74,7 +81,7 @@ class Execute(Ui_Interface):
         async def start_async(self:Execute):
             mensagem_final = ""
             asyncio.create_task(self.pg02_bt_verific_visibilidade(False))
-            
+            asyncio.create_task(self.pg02_bt_iniciar_visibilidade(False))
             await self.pg02_print_infor(reset=True)
             try:
                 await self.pg02_list_limpar_items()
@@ -99,12 +106,15 @@ class Execute(Ui_Interface):
                 else:
                     mensagem_final += "nenhuma empresa pendente, pronto para iniciar\n"
                 
+                
+                
                 await self.pg02_print_infor(text="Encerrando verificação")
-                await self.__excel_file.close_excel()
+                
                 #self.navegador.fechar()
                 
                 mensagem_final += "Verificação Encerrada \n"
                 await self.pg02_print_infor(text=mensagem_final)
+                await self.pg02_bt_iniciar_visibilidade(True)
             except AttributeError as error_attribute:
                 print(P(str(error_attribute), color='red'))
                 print(traceback.format_exc())
@@ -112,6 +122,7 @@ class Execute(Ui_Interface):
             except Exception as error:
                 await self.pg02_print_infor(text=str(error))
             finally:
+                #await self.__excel_file.close_excel()
                 await self.pg02_bt_verific_visibilidade(True)
                 return
        
@@ -134,6 +145,41 @@ class Execute(Ui_Interface):
                     result["Sem Cadastro"].append(cnpj)
                     #print(P(f"A empresa '{cnpj}' não está cadastrada!", color='red'))
         return result
+    
+    def iniciar_gerar_guias(self):
+        async def async_start(self:Execute):
+            await self.navegador.limpar_pasta_download()
+            await self.pg02_bt_verific_visibilidade(False)
+            await self.pg02_bt_iniciar_visibilidade(False)
+            try:
+                #await self.file_manipulate.read_excel(self.excel_file.file_path)
+                for row, value in self.file_manipulate.df.iterrows():
+                    for _ in range(2*30):
+                        try:
+                            await self.navegador.gerar_guia(cnpj=value["CNPJ RET"], periodo_apuracao=self.file_manipulate.periodo_apuracao, valor=value["Valor"])
+                            await self.file_manipulate.record_return(address=value["RPA_report"], value="Concluido")
+                            break
+                        except TimeoutException:
+                            await asyncio.sleep(2)
+                        except NoSuchElementException:
+                            await asyncio.sleep(2)
+                        except InvalidSessionIdException:
+                            await self.navegador.start()
+                            await asyncio.sleep(2)                            
+                        except Exception as error:
+                            error = str(error).replace('\n', " <br> ")
+                            await self.file_manipulate.record_return(address=value["RPA_report"], value=error)
+                            break
+                        
+
+            finally:
+                await self.pg02_bt_verific_visibilidade(True)
+                #await self.pg02_bt_iniciar_visibilidade(True)
+                await self.file_manipulate.close_excel(save=True)
+        
+        asyncio.create_task(async_start(self))
+            
+        
                     
     @staticmethod
     async def iterador(df: pd.DataFrame) -> dict:
