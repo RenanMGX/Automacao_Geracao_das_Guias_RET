@@ -8,6 +8,7 @@ import re
 from .dependencies.functions import Functions
 import asyncio
 from typing import List, Dict
+import shutil
 
 class NotFoundSheetError(Exception):
     def __init__(self, *args: object) -> None:
@@ -19,6 +20,9 @@ class FilePathEmpty(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 class PeriodoApuracaoNotFound(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+class PathNotFoundException(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
@@ -149,6 +153,7 @@ class FilesManipulate():
             df = df.drop_duplicates()
             df = df[[
                                 "Empresa",
+                                "Divisão",
                                 "CNPJ RET",
                                 "Valor a recolher 4%",
                                 "Valor a recolher 1%",
@@ -188,6 +193,32 @@ class FilesManipulate():
                 raise Exception(f"o arquivo precisa ser iniciado executando o metodo '{self.__class__.__name__}.read_excel()'")
         else:
             raise Exception(f"{address=} não é valido")
+        
+    async def renomear_arquivo_recente(self, *, download_path:str, empresa:str, divisao:str, valor:str, tipo:str):
+        for num_tentativas in range(15*60):
+            if os.path.exists(download_path):
+                ultimo_arquivo_baixado:str = max([os.path.join(download_path, file) for file in os.listdir(download_path)], key=os.path.getctime)
+                if not ".crdownload" in ultimo_arquivo_baixado:
+                    break
+            else:
+                raise PathNotFoundException(f"caminho não encontrado {download_path=}")
+            await asyncio.sleep(1)
+            if (num_tentativas+1) >= 15*60:
+                raise Exception(f"erro ao baixar o arquivo {ultimo_arquivo_baixado=}")
+        
+        _, extensao = os.path.splitext(ultimo_arquivo_baixado)
+        
+        new_file_name:str = f"{empresa} {divisao} {valor} {tipo}{extensao}"
+        
+        terms:list = [r"\\", r"/", r":", r"\*", r"\?", r"<", r">"]
+        param = re.compile("|".join(terms))
+        new_file_name = param.sub('_', new_file_name).replace('|', '_')
+        new_file_name = os.path.join(download_path, new_file_name)
+        
+        try:        
+            os.rename(ultimo_arquivo_baixado, new_file_name)
+        except PermissionError:
+            shutil.copy2(ultimo_arquivo_baixado, new_file_name)
         
     async def close_excel(self, *, save:bool=False):
         try:

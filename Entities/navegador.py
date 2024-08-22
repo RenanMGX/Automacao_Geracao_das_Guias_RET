@@ -4,7 +4,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, InvalidSessionIdException, JavascriptException
 #from time import sleep
 from .dependencies.functions import P
 import os
@@ -114,7 +114,7 @@ class SicalcReceita:
         
     async def start(self, *, initial_page:str="https://sicalc.receita.economia.gov.br/sicalc/rapido/contribuinte", restart_page:bool=False) -> bool:
         try:
-            self.__nav
+            self.__nav            
             if restart_page:
                 for _ in range(5):
                     try:
@@ -128,7 +128,7 @@ class SicalcReceita:
             print(P("Abrindo Navegador", color='blue'))
             self.__nav:WebDriver = await self.__start_nav(initial_page)
             self.nav.set_page_load_timeout(5)
-            print(P("O navegador aberto!", color='green'))
+            print(P("O navegador foi aberto!", color='green'))
             return True
     
     async def limpar_pasta_download(self):
@@ -313,12 +313,14 @@ class SicalcReceita:
                 self.nav.switch_to.window(janelas[0])
             
         
-        _find_element(By.ID, 'btnRetornar', driver=self.nav).click()
-        
-        await asyncio.sleep(3)
-        
-        #import pdb; pdb.set_trace()
-        
+        for _ in range(15):
+            try:
+                self.nav.get("https://sicalc.receita.economia.gov.br/sicalc/rapido/contribuinte")
+                break
+            except TimeoutException:
+                pass
+        await asyncio.sleep(1)
+
         return
     
 if __name__ == "__main__":

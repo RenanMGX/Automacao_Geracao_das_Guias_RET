@@ -1,5 +1,5 @@
 from Entities.files import FilesManipulate, pd
-from Entities.navegador import SicalcReceita, TimeoutException, NoSuchElementException, InvalidSessionIdException
+from Entities.navegador import SicalcReceita, TimeoutException, NoSuchElementException, InvalidSessionIdException, JavascriptException
 from typing import List, Dict, Literal, Coroutine, Any
 from Entities.dependencies.functions import P
 from Entities.interface import Ui_Interface, QtWidgets
@@ -7,7 +7,7 @@ import sys
 import qasync
 import asyncio
 import traceback
-
+from datetime import datetime
 
 
 
@@ -79,6 +79,7 @@ class Execute(Ui_Interface):
     
     def fazer_verificacao_empresas(self):
         async def start_async(self:Execute):
+            
             mensagem_final = ""
             asyncio.create_task(self.pg02_bt_verific_visibilidade(False))
             asyncio.create_task(self.pg02_bt_iniciar_visibilidade(False))
@@ -148,35 +149,44 @@ class Execute(Ui_Interface):
     
     def iniciar_gerar_guias(self):
         async def async_start(self:Execute):
+            tempo_inicio = datetime.now()
+            await self.pg02_print_infor(reset=True)
             await self.navegador.limpar_pasta_download()
             await self.pg02_bt_verific_visibilidade(False)
             await self.pg02_bt_iniciar_visibilidade(False)
             try:
                 #await self.file_manipulate.read_excel(self.excel_file.file_path)
                 for row, value in self.file_manipulate.df.iterrows():
-                    for _ in range(2*30):
+                    for _ in range(60):
                         try:
                             await self.navegador.gerar_guia(cnpj=value["CNPJ RET"], periodo_apuracao=self.file_manipulate.periodo_apuracao, valor=value["Valor"])
                             await self.file_manipulate.record_return(address=value["RPA_report"], value="Concluido")
+                            await self.file_manipulate.renomear_arquivo_recente(download_path=self.navegador.download_path, empresa=value['Empresa'], divisao=value['Divisão'], valor=value['Valor'], tipo=value['Tipo'])
                             break
                         except TimeoutException:
-                            await asyncio.sleep(2)
+                            await asyncio.sleep(1)
                         except NoSuchElementException:
-                            await asyncio.sleep(2)
+                            await asyncio.sleep(1)
                         except InvalidSessionIdException:
+                            del self.navegador.nav
                             await self.navegador.start()
-                            await asyncio.sleep(2)                            
+                            await asyncio.sleep(1)   
+                        except JavascriptException:
+                            await asyncio.sleep(1)                        
                         except Exception as error:
                             error = str(error).replace('\n', " <br> ")
-                            await self.file_manipulate.record_return(address=value["RPA_report"], value=error)
-                            break
+                            await asyncio.sleep(1)    
+                            #await self.file_manipulate.record_return(address=value["RPA_report"], value=error)
+                            #break
                         
 
             finally:
                 await self.pg02_bt_verific_visibilidade(True)
                 #await self.pg02_bt_iniciar_visibilidade(True)
                 await self.file_manipulate.close_excel(save=True)
-        
+                print(P("Fim da Automação!", color='green'))
+                await self.pg02_print_infor(text=f"Fim da Automação!\ntempo de execução: {datetime.now() - tempo_inicio}")
+                print(P(f"tempo de execução: {datetime.now() - tempo_inicio}", color='white'))
         asyncio.create_task(async_start(self))
             
         
