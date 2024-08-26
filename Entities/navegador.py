@@ -139,7 +139,7 @@ class SicalcReceita:
                     try:
                         os.unlink(file)
                     except:
-                        await Logs().register(status='Error',description='erro ao apagar arquivo', exception=traceback.format_exc())
+                        await Logs(self.__class__.__name__).register(status='Error',description='erro ao apagar arquivo', exception=traceback.format_exc())
             
         except AttributeError:
             raise Exception(f"o navegador precisa ser iniciado executando o metodo '{self.__class__.__name__}.start()'")

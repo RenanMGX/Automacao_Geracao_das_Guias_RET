@@ -88,12 +88,12 @@ class Ui_Interface(object):
         _translate = QtCore.QCoreApplication.translate
         Interface.setWindowTitle(_translate("Interface", "Dialog"))
         self.pg01_bt_carregar_arquivo.setText(_translate("Interface", "Carregar Arquivo"))
-        self.pg01_label_titulo.setText(_translate("Interface", "TextLabel"))
+        self.pg01_label_titulo.setText(_translate("Interface", "Automação Geração das Guias RET"))
         self.pg01_label_aviso.setText(_translate("Interface", "Aviso"))
         self.pg02_bt_verific_empre.setText(_translate("Interface", "Verificar Empresas"))
         self.pg02_bt_iniciar.setText(_translate("Interface", "Iniciar"))
         self.pg02_bt_voltar.setText(_translate("Interface", "Voltar"))
-        self.pg02_label_infor_text.setText(_translate("Interface", "TextLabel"))
+        self.pg02_label_infor_text.setText(_translate("Interface", " "))
         
         
     async def mudar_pagina(self, pagina:Literal["Inicial", "Pos-Inicial"]) -> None:

@@ -3,15 +3,18 @@ from Entities.navegador import SicalcReceita, TimeoutException, NoSuchElementExc
 from typing import List, Dict, Literal, Coroutine, Any
 from Entities.dependencies.functions import P
 from Entities.interface import Ui_Interface, QtWidgets
+from Entities.dependencies.logs import Logs
 import sys
 import qasync
 import asyncio
 import traceback
 from datetime import datetime
 
-
-
 class Execute(Ui_Interface):
+    @property
+    def log(self) -> Logs:
+        return Logs(name="Automação Geração das Guias RET")
+    
     @property
     def excel_file(self) -> FilesManipulate:
         return self.__excel_file
@@ -35,7 +38,6 @@ class Execute(Ui_Interface):
     @property
     def file_manipulate(self) -> FilesManipulate:
         return self.__file_manipulate
-         
 
     def __init__(self) -> None:
         super().__init__()
@@ -107,11 +109,7 @@ class Execute(Ui_Interface):
                 else:
                     mensagem_final += "nenhuma empresa pendente, pronto para iniciar\n"
                 
-                
-                
                 await self.pg02_print_infor(text="Encerrando verificação")
-                
-                #self.navegador.fechar()
                 
                 mensagem_final += "Verificação Encerrada \n"
                 await self.pg02_print_infor(text=mensagem_final)
@@ -128,9 +126,6 @@ class Execute(Ui_Interface):
                 return
        
         asyncio.create_task(start_async(self))
-            
-    
-    #Dict[Literal["Com Cadastro", "Sem Cadastro"],List[str]]
                     
     async def verificar_empresas(self, df:pd.DataFrame) -> Dict[Literal["Com Cadastro", "Sem Cadastro"],List[str]]:
         result:Dict[Literal["Com Cadastro", "Sem Cadastro"],List[str]] = {"Com Cadastro": [], "Sem Cadastro": []}
@@ -178,7 +173,6 @@ class Execute(Ui_Interface):
                             await asyncio.sleep(1)    
                             #await self.file_manipulate.record_return(address=value["RPA_report"], value=error)
                             #break
-                        
 
             finally:
                 await self.pg02_bt_verific_visibilidade(True)
@@ -187,9 +181,8 @@ class Execute(Ui_Interface):
                 print(P("Fim da Automação!", color='green'))
                 await self.pg02_print_infor(text=f"Fim da Automação!\ntempo de execução: {datetime.now() - tempo_inicio}")
                 print(P(f"tempo de execução: {datetime.now() - tempo_inicio}", color='white'))
+                await self.log.register(status='Concluido', description="execução bem sucedida", exception=traceback.format_exc())
         asyncio.create_task(async_start(self))
-            
-        
                     
     @staticmethod
     async def iterador(df: pd.DataFrame) -> dict:
