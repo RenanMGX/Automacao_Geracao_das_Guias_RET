@@ -13,16 +13,20 @@ from typing import Literal
 import asyncio
 
 
-class Ui_Interface(object):
+class Ui_Interface(QtWidgets.QMainWindow):
     def __init__(self, *, version:str="0") -> None:
+        super().__init__()
         self.version:str = version
     
-    async def setupUi(self, Interface:QtWidgets.QMainWindow) -> None:
+    
+    async def setupUi(self) -> None:
         
-        Interface.setObjectName("Interface")
-        Interface.resize(512, 241)
+        self.setObjectName("Interface")
+        self.resize(512, 241)
         
-        self.telas = QtWidgets.QStackedWidget(Interface)
+        
+        
+        self.telas = QtWidgets.QStackedWidget(self)
         self.telas.setGeometry(QtCore.QRect(10, 10, 491, 221))
         self.telas.setObjectName("telas")
         
@@ -84,9 +88,9 @@ class Ui_Interface(object):
         
         self.telas.addWidget(self.pg02_pos_inicial)
 
-        await self.retranslateUi(Interface)
+        await self.retranslateUi(self)
         self.telas.setCurrentIndex(0)
-        QtCore.QMetaObject.connectSlotsByName(Interface)
+        QtCore.QMetaObject.connectSlotsByName(self)
 
     async def retranslateUi(self, Interface:QtWidgets.QMainWindow) -> None:
         _translate = QtCore.QCoreApplication.translate
@@ -148,7 +152,6 @@ class Ui_Interface(object):
     async def pg02_bt_iniciar_visibilidade(self, visible) -> None:
         self.pg02_bt_iniciar.setVisible(visible)
             
-        
         
 if __name__ == "__main__":
     pass

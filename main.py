@@ -40,10 +40,26 @@ class Execute(Ui_Interface):
         return self.__file_manipulate
 
     def __init__(self) -> None:
-        super().__init__(version="1.0")
+        #################################################################################################################################
+        super().__init__(version="1.4") # <------------------------------------------------ Sempre alterar versão antes de compilar     #
+        #################################################################################################################################
         self.__file_manipulate:FilesManipulate = FilesManipulate()
         self.__navegador: SicalcReceita = SicalcReceita()
     
+    def closeEvent(self, event):
+        print(P("Encerrando Script"))
+        try:
+            self.navegador.nav.close()
+            del self.navegador.nav
+        except:
+            pass
+        try:
+            asyncio.create_task(self.file_manipulate.close_excel())
+        except:
+            pass
+        event.accept()  # Isso irá fechar a janela    
+        
+        
     def pg02_action_voltar(self) -> None:
         async def voltar_async(self:Execute):
             await self.pg01_print_aviso(reset=True)
@@ -81,8 +97,8 @@ class Execute(Ui_Interface):
         asyncio.create_task(carregar_excel_async(self))
     
     def fazer_verificacao_empresas(self):
+        self.empresas_verificadas_sem_cadastro:list = []
         async def start_async(self:Execute):
-            
             mensagem_final = ""
             asyncio.create_task(self.pg02_bt_verific_visibilidade(False))
             asyncio.create_task(self.pg02_bt_iniciar_visibilidade(False))
@@ -102,9 +118,9 @@ class Execute(Ui_Interface):
                 empresas_verificadas = await self.verificar_empresas(self.excel_file.df)
                 
                 await self.pg02_print_infor(text="Listando Empresas")
-                empresas_verificadas_sem_cadastro:list = list(set(empresas_verificadas['Sem Cadastro']))
-                if empresas_verificadas_sem_cadastro:
-                    for cnpj in empresas_verificadas_sem_cadastro:
+                self.empresas_verificadas_sem_cadastro = list(set(empresas_verificadas['Sem Cadastro']))
+                if self.empresas_verificadas_sem_cadastro:
+                    for cnpj in self.empresas_verificadas_sem_cadastro:
                         await self.pg02_list_additem(str(cnpj))
                     mensagem_final += "existe empresas que não estão cadastradas no site\n"
                 else:
@@ -154,10 +170,13 @@ class Execute(Ui_Interface):
                 #await self.file_manipulate.read_excel(self.excel_file.file_path)
                 for row, value in self.file_manipulate.df.iterrows():
                     for _ in range(60):
+                        if value["CNPJ RET"] in self.empresas_verificadas_sem_cadastro:
+                            continue
                         try:
                             await self.navegador.gerar_guia(cnpj=value["CNPJ RET"], periodo_apuracao=self.file_manipulate.periodo_apuracao, valor=value["Valor"])
                             await self.file_manipulate.record_return(address=value["RPA_report"], value="Concluido")
                             await self.file_manipulate.renomear_arquivo_recente(download_path=self.navegador.download_path, empresa=value['Empresa'], divisao=value['Divisão'], valor=value['Valor'], tipo=value['Tipo'])
+                            print(P(f"{value["CNPJ RET"]} - foi concluido", color="green"))
                             break
                         except TimeoutException:
                             await asyncio.sleep(1)
@@ -170,10 +189,11 @@ class Execute(Ui_Interface):
                         except JavascriptException:
                             await asyncio.sleep(1)                        
                         except Exception as error:
-                            error = str(error).replace('\n', " <br> ")
+                            await self.log.register(status='Error', description="erro ao gerar arquivo", exception=traceback.format_exc())
                             await asyncio.sleep(1)    
                             #await self.file_manipulate.record_return(address=value["RPA_report"], value=error)
                             #break
+                        print(P(f"Erro com '{value["CNPJ RET"]}' tentando novamente", color="red"))
 
             finally:
                 await self.pg02_bt_verific_visibilidade(True)
@@ -183,6 +203,8 @@ class Execute(Ui_Interface):
                 await self.pg02_print_infor(text=f"Fim da Automação!\ntempo de execução: {datetime.now() - tempo_inicio}")
                 print(P(f"tempo de execução: {datetime.now() - tempo_inicio}", color='white'))
                 await self.log.register(status='Concluido', description="execução bem sucedida", exception=traceback.format_exc())
+                self.navegador.nav.close()
+                del self.navegador.nav
         asyncio.create_task(async_start(self))
                     
     @staticmethod
@@ -191,14 +213,15 @@ class Execute(Ui_Interface):
         for row, value in df.iterrows():
             result[row] = value
         return result
-        
+    
+         
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
-    MainWindow = QtWidgets.QMainWindow()
+    #MainWindow = QtWidgets.QMainWindow()
     ui = Execute()
-    asyncio.run(ui.setupUi(MainWindow))
+    asyncio.run(ui.setupUi())
     asyncio.run(ui.initial_config())
-    MainWindow.show()
+    ui.show()
     loop.run_forever()

@@ -21,7 +21,7 @@ class Logs:
     def name(self) -> str:
         return self.__name
     
-    def __init__(self, name:str, *, path_folder:str=os.path.join(os.getcwd(), 'Logs'), hostname:str="Patrimar-RPA", port:str="8000", token:str="7841a44ce4619d9e3eaa151810cfc4babc8eb5ae") -> None:
+    def __init__(self, name:str, *, path_folder:str=os.path.join(os.getcwd(), 'Logs'), hostname:str="192.168.1.218", port:str="8000", token:str="7841a44ce4619d9e3eaa151810cfc4babc8eb5ae") -> None:
         self.__path_folder:str = path_folder
         self.__name:str = name
         if not os.path.exists(self.path_folder):

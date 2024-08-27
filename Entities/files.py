@@ -208,7 +208,7 @@ class FilesManipulate():
         
         _, extensao = os.path.splitext(ultimo_arquivo_baixado)
         
-        new_file_name:str = f"{empresa} {divisao} {valor} {tipo}{extensao}"
+        new_file_name:str = f"{empresa} {divisao} {valor} {tipo}{extensao}".replace("Valor a recolher", "RET")
         
         terms:list = [r"\\", r"/", r":", r"\*", r"\?", r"<", r">"]
         param = re.compile("|".join(terms))

@@ -32,19 +32,22 @@ class ContribuinteError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
+def site_down(driver: WebDriver, *, time_wait:int|float=10):
+    while True:
+        try:
+            driver.find_element(By.ID, 'error-information-popup-content')
+            sleep(time_wait)
+            driver.refresh()
+            continue
+        except NoSuchElementException:
+            return
+        except TimeoutException:
+            continue
+
 
 def _find_element(by:str, target:str, *, driver:WebDriver, timeout:int=5, force:bool=False, element:WebElement|None=None) -> WebElement:
         for _ in range(timeout*4):
-            while True:
-                try:
-                    driver.find_element(By.ID, 'error-information-popup-content')
-                    sleep(5)
-                    driver.refresh()
-                    continue
-                except NoSuchElementException:
-                    break
-                except TimeoutException:
-                    continue
+            site_down(driver)
             try:
                 for _ in range(5):
                     try:
@@ -65,16 +68,7 @@ def _find_element(by:str, target:str, *, driver:WebDriver, timeout:int=5, force:
 
 def _find_elements(by:str, target:str, *, driver:WebDriver, timeout:int=5, force:bool=False, element: WebElement|None=None) -> list:
     for _ in range(timeout*4):
-        while True:
-            try:
-                driver.find_element(By.ID, 'error-information-popup-content')
-                sleep(5)
-                driver.refresh()
-                continue
-            except NoSuchElementException:
-                break
-            except TimeoutException:
-                continue
+        site_down(driver)
         try:
             for _ in range(5):
                 try:
@@ -173,34 +167,43 @@ class SicalcReceita:
                 nav.get(url)
                 return nav
             except:
-                nav.close()
+                try:
+                    nav.close()
+                except:
+                    pass
+                try:
+                    del nav
+                except:
+                    pass
                 await asyncio.sleep(1)
         raise NavStartError("não foi possivel iniciar o navegador")
     
     async def verificar_cadastros(self) -> List[str]:
-        
-        #_find_element(By.ID, "optionPJ", driver=self.nav).click()
-        select:WebElement = _find_element(By.ID, 'selectToken', driver=self.nav)
-        options:List[WebElement] = select.find_elements(By.TAG_NAME, 'option')
-        
-        if len(options) > 1:
-            return [option.text for option in options]
-        else:
-            raise RegistersEmpty("Não foi encontrado empresas registradas")
+        try:
+            #_find_element(By.ID, "optionPJ", driver=self.nav).click()
+            select:WebElement = _find_element(By.ID, 'selectToken', driver=self.nav)
+            options:List[WebElement] = select.find_elements(By.TAG_NAME, 'option')
+            
+            if len(options) > 1:
+                return [option.text for option in options]
+            else:
+                raise RegistersEmpty("Não foi encontrado empresas registradas")
+        except:
+            return []
     
     async def fechar(self) -> None:
         self.nav.close()
         del self.nav
         
         
-    async def gerar_guia(self , *, cnpj:str, periodo_apuracao:str, valor:str):
+    async def gerar_guia(self , *, cnpj:str, periodo_apuracao:str, valor:str, tempo_espera:int|float=0):
         if not (valid:=re.search(r'[0-9]{2}.[0-9]{3}.[0-9]{3}/[0-9]{4}-[0-9]{2}', cnpj)):
             raise TypeError(f"numero de CNPJ invalido '{cnpj}'")
         else:
             if cnpj != valid.group():
                 raise TypeError(f"numero de CNPJ invalido '{cnpj}'")
 
-        for _ in range(2*60):
+        for _ in range(10):
             try:
                 select:WebElement = _find_element(By.ID, 'selectToken', driver=self.nav)
                 break
@@ -209,11 +212,18 @@ class SicalcReceita:
                     self.nav.get("https://sicalc.receita.economia.gov.br/sicalc/rapido/contribuinte")
                 except TimeoutException:
                     pass
+                except Exception:
+                    self.nav.close()
+                    del self.nav
+                    return
+            if _ == 9:
+                raise Exception("'selectToken' não encontrado")
             await asyncio.sleep(1)
             
             
         options:List[WebElement] = select.find_elements(By.TAG_NAME, 'option')
         
+        await asyncio.sleep(tempo_espera)
         _find_element(By.XPATH, '//*[@id="selectToken"]/option[1]', driver=self.nav).click()
         
         def find_empresa(cnpj):
@@ -227,9 +237,11 @@ class SicalcReceita:
 
         
         botoes:WebElement = _find_element(By.ID, 'divBotoes', driver=self.nav)
+        botoes.location_once_scrolled_into_view
         inputs:List[WebElement] = _find_elements(By.TAG_NAME, 'input', driver=self.nav, element=botoes)
         for input in inputs:
             if input.get_attribute('value') == 'Continuar':
+                await asyncio.sleep(tempo_espera)
                 input.click()
                 break
    
@@ -244,7 +256,10 @@ class SicalcReceita:
             raise ContribuinteError(error_text)
 
         #_find_element(By.ID, 'observacao', driver=self.nav).clear()
-        _find_element(By.ID, 'observacao', driver=self.nav).send_keys("RET")
+        await asyncio.sleep(tempo_espera)
+        observacao = _find_element(By.ID, 'observacao', driver=self.nav)
+        observacao.location_once_scrolled_into_view
+        observacao.send_keys("RET")
         
         def find_autocomplete(target:str):
             auto_complete_s:List[WebElement] = _find_elements(By.CLASS_NAME, 'autocomplete-suggestion', driver=self.nav)            
@@ -258,12 +273,16 @@ class SicalcReceita:
                 except:
                     continue
             raise NoSuchElementException("auto complete não encontrado")
-
+        
+        
         def select_autocomplete():
             for _ in range(10):
                 try:
-                    _find_element(By.ID, 'codReceitaPrincipal', driver=self.nav).clear()
-                    _find_element(By.ID, 'codReceitaPrincipal', driver=self.nav).send_keys('4095')
+                    
+                    codReceitaPrincipal = _find_element(By.ID, 'codReceitaPrincipal', driver=self.nav)
+                    codReceitaPrincipal.location_once_scrolled_into_view
+                    codReceitaPrincipal.clear()
+                    codReceitaPrincipal.send_keys('4095')
                     sleep(.5)
                     find_autocomplete('4095 - 01')
                     return
@@ -271,13 +290,17 @@ class SicalcReceita:
                     sleep(.5)
             raise NoSuchElementException("auto complete não encontrado")
         
+        await asyncio.sleep(tempo_espera)
         select_autocomplete()
         sleep(.5)
         
         fld_automatico:WebElement = _find_element(By.ID, 'fldAutomatico', driver=self.nav)
+        fld_automatico.location_once_scrolled_into_view
         fld_automatico.find_element(By.ID, 'dataPA').clear()
+        await asyncio.sleep(tempo_espera)
         fld_automatico.find_element(By.ID, 'dataPA').send_keys(periodo_apuracao)
         
+        await asyncio.sleep(tempo_espera)
         fld_automatico.find_element(By.ID, 'numeroReferencia').click()
         
         if (periodo_error:=_find_element(By.ID, 'fldError', driver=self.nav).text) != '':
@@ -285,21 +308,24 @@ class SicalcReceita:
         
         
         fld_principal:WebElement = _find_element(By.ID, 'fldPrincipal', driver=self.nav)
-        
+        fld_principal.location_once_scrolled_into_view
         while len(str(fld_principal.find_element(By.ID, 'valorPrincipal').get_attribute('value'))) > 0:
             fld_principal.find_element(By.ID, 'valorPrincipal').send_keys(Keys.BACKSPACE)
         
+        await asyncio.sleep(tempo_espera)
         fld_principal.find_element(By.ID, 'valorPrincipal').send_keys(valor)
         
+        await asyncio.sleep(tempo_espera)
         _find_element(By.ID, 'btnCalcular', driver=self.nav).click()
         
         tbody = _find_element(By.TAG_NAME, 'tbody', driver=self.nav)
         sleep(1)
+        await asyncio.sleep(tempo_espera)
         tbody.find_element(By.TAG_NAME, 'input').click()
-        
+        await asyncio.sleep(tempo_espera)
         _find_element(By.ID, 'btnDarf', driver=self.nav).click()
         
-        await asyncio.sleep(2)
+        await asyncio.sleep(tempo_espera)
         janelas = self.nav.window_handles
         if len(janelas) > 1:
             self.nav.switch_to.window(janelas[1])
@@ -319,7 +345,7 @@ class SicalcReceita:
                 break
             except TimeoutException:
                 pass
-        await asyncio.sleep(1)
+        await asyncio.sleep(tempo_espera)
 
         return
     
