@@ -40,7 +40,7 @@ class Execute(Ui_Interface):
         return self.__file_manipulate
 
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(version="1.0")
         self.__file_manipulate:FilesManipulate = FilesManipulate()
         self.__navegador: SicalcReceita = SicalcReceita()
     
@@ -55,6 +55,7 @@ class Execute(Ui_Interface):
         asyncio.create_task(voltar_async(self))
         
     async def initial_config(self):
+        self.version = "1.0"
         self.pg01_bt_carregar_arquivo.clicked.connect(self.carregar_excel)
         self.pg02_bt_verific_empre.clicked.connect(self.fazer_verificacao_empresas)
         self.pg02_bt_voltar.clicked.connect(self.pg02_action_voltar)

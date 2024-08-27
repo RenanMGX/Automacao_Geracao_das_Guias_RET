@@ -14,7 +14,11 @@ import asyncio
 
 
 class Ui_Interface(object):
+    def __init__(self, *, version:str="0") -> None:
+        self.version:str = version
+    
     async def setupUi(self, Interface:QtWidgets.QMainWindow) -> None:
+        
         Interface.setObjectName("Interface")
         Interface.resize(512, 241)
         
@@ -86,9 +90,9 @@ class Ui_Interface(object):
 
     async def retranslateUi(self, Interface:QtWidgets.QMainWindow) -> None:
         _translate = QtCore.QCoreApplication.translate
-        Interface.setWindowTitle(_translate("Interface", "Dialog"))
+        Interface.setWindowTitle(_translate("Interface", f"Automação Geração das Guias RET V{self.version}"))
         self.pg01_bt_carregar_arquivo.setText(_translate("Interface", "Carregar Arquivo"))
-        self.pg01_label_titulo.setText(_translate("Interface", "Automação Geração das Guias RET"))
+        self.pg01_label_titulo.setText(_translate("Interface", "Selecione o arquivo excel padrão."))
         self.pg01_label_aviso.setText(_translate("Interface", "Aviso"))
         self.pg02_bt_verific_empre.setText(_translate("Interface", "Verificar Empresas"))
         self.pg02_bt_iniciar.setText(_translate("Interface", "Iniciar"))
