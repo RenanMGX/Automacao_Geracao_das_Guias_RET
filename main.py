@@ -41,7 +41,7 @@ class Execute(Ui_Interface):
 
     def __init__(self) -> None:
         #################################################################################################################################
-        super().__init__(version="1.4") # <------------------------------------------------ Sempre alterar versão antes de compilar     #
+        super().__init__(version="1.6") # <------------------------------------------------ Sempre alterar versão antes de compilar     #
         #################################################################################################################################
         self.__file_manipulate:FilesManipulate = FilesManipulate()
         self.__navegador: SicalcReceita = SicalcReceita()
@@ -169,6 +169,7 @@ class Execute(Ui_Interface):
             try:
                 #await self.file_manipulate.read_excel(self.excel_file.file_path)
                 for row, value in self.file_manipulate.df.iterrows():
+                    erro:Exception
                     for _ in range(60):
                         if value["CNPJ RET"] in self.empresas_verificadas_sem_cadastro:
                             continue
@@ -178,22 +179,28 @@ class Execute(Ui_Interface):
                             await self.file_manipulate.renomear_arquivo_recente(download_path=self.navegador.download_path, empresa=value['Empresa'], divisao=value['Divisão'], valor=value['Valor'], tipo=value['Tipo'])
                             print(P(f"{value["CNPJ RET"]} - foi concluido", color="green"))
                             break
-                        except TimeoutException:
+                        except TimeoutException as error:
+                            erro = error
                             await asyncio.sleep(1)
-                        except NoSuchElementException:
+                        except NoSuchElementException as error:
+                            erro = error
                             await asyncio.sleep(1)
-                        except InvalidSessionIdException:
+                        except InvalidSessionIdException as error:
+                            erro = error
                             del self.navegador.nav
                             await self.navegador.start()
                             await asyncio.sleep(1)   
-                        except JavascriptException:
+                        except JavascriptException as error:
+                            erro = error
                             await asyncio.sleep(1)                        
                         except Exception as error:
                             await self.log.register(status='Error', description="erro ao gerar arquivo", exception=traceback.format_exc())
-                            await asyncio.sleep(1)    
+                            await asyncio.sleep(1)
+                            erro = error 
                             #await self.file_manipulate.record_return(address=value["RPA_report"], value=error)
                             #break
-                        print(P(f"Erro com '{value["CNPJ RET"]}' tentando novamente", color="red"))
+                        print(P(f"Erro com '{value["CNPJ RET"]}' tentando novamente -> {type(erro)}", color="red"))
+                        erro = Exception("")
 
             finally:
                 await self.pg02_bt_verific_visibilidade(True)

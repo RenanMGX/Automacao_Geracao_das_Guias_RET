@@ -64,7 +64,7 @@ def _find_element(by:str, target:str, *, driver:WebDriver, timeout:int=5, force:
                 asyncio.create_task(asyncio.sleep(.25))
         if force:
             return driver.find_element(By.TAG_NAME, 'html')
-        raise WebElementNotFoundError(f"o elemento '{by}: {target}' não foi encontrado") 
+        raise NoSuchElementException(f"o elemento '{by}: {target}' não foi encontrado") 
 
 def _find_elements(by:str, target:str, *, driver:WebDriver, timeout:int=5, force:bool=False, element: WebElement|None=None) -> list:
     for _ in range(timeout*4):
@@ -85,7 +85,7 @@ def _find_elements(by:str, target:str, *, driver:WebDriver, timeout:int=5, force
             asyncio.create_task(asyncio.sleep(.25))
     if force:
         return []
-    raise WebElementNotFoundError(f"o elemento '{by}: {target}' não foi encontrado") 
+    raise NoSuchElementException(f"o elemento '{by}: {target}' não foi encontrado") 
 
 class SicalcReceita:
     @property
@@ -203,22 +203,28 @@ class SicalcReceita:
             if cnpj != valid.group():
                 raise TypeError(f"numero de CNPJ invalido '{cnpj}'")
 
-        for _ in range(10):
-            try:
-                select:WebElement = _find_element(By.ID, 'selectToken', driver=self.nav)
-                break
-            except:
-                try:
-                    self.nav.get("https://sicalc.receita.economia.gov.br/sicalc/rapido/contribuinte")
-                except TimeoutException:
-                    pass
-                except Exception:
-                    self.nav.close()
-                    del self.nav
-                    return
-            if _ == 9:
-                raise Exception("'selectToken' não encontrado")
-            await asyncio.sleep(1)
+        try:
+            self.nav.get("https://sicalc.receita.economia.gov.br/sicalc/rapido/contribuinte")
+        except TimeoutError:
+            pass
+        select:WebElement = _find_element(By.ID, 'selectToken', driver=self.nav)    
+        
+        # for _ in range(10):
+        #     try:
+        #         select = _find_element(By.ID, 'selectToken', driver=self.nav)
+        #         break
+        #     except:
+        #         try:
+        #             self.nav.get("https://sicalc.receita.economia.gov.br/sicalc/rapido/contribuinte")
+        #         except TimeoutException:
+        #             pass
+        #         except Exception:
+        #             self.nav.close()
+        #             del self.nav
+        #             return
+        #     if _ == 9:
+        #         raise Exception("'selectToken' não encontrado")
+        #     await asyncio.sleep(1)
             
             
         options:List[WebElement] = select.find_elements(By.TAG_NAME, 'option')
@@ -242,7 +248,10 @@ class SicalcReceita:
         for input in inputs:
             if input.get_attribute('value') == 'Continuar':
                 await asyncio.sleep(tempo_espera)
-                input.click()
+                try:
+                    input.click()
+                except TimeoutException:
+                    pass
                 break
    
         def erro_contribuinte() -> bool:
@@ -328,14 +337,22 @@ class SicalcReceita:
         await asyncio.sleep(tempo_espera)
         janelas = self.nav.window_handles
         if len(janelas) > 1:
-            self.nav.switch_to.window(janelas[1])
-            try:
-                self.nav.find_element(By.ID, 'error-information-popup-content')
-                self.nav.close()
-                self.nav.switch_to.window(janelas[0])
-                raise TimeoutException("nova aba não carregou")
-            except:
-                self.nav.close()
+            for janela in janelas:
+                if janela == janelas[0]:
+                    continue
+                try:             
+                    self.nav.switch_to.window(janela)
+                except:
+                    self.nav.switch_to.window(janelas[0])
+                    continue
+                try:
+                    self.nav.find_element(By.ID, 'error-information-popup-content')
+                    self.nav.close()
+                    self.nav.switch_to.window(janelas[0])
+                    raise TimeoutException("nova aba não carregou")
+                except:
+                    pass
+                
                 self.nav.switch_to.window(janelas[0])
             
         
