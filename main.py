@@ -10,6 +10,7 @@ import asyncio
 import traceback
 from datetime import datetime
 
+
 class Execute(Ui_Interface):
     @property
     def log(self) -> Logs:
@@ -138,7 +139,7 @@ class Execute(Ui_Interface):
             except Exception as error:
                 await self.pg02_print_infor(text=str(error))
             finally:
-                #await self.__excel_file.close_excel()
+                await self.__excel_file.close_excel()
                 await self.pg02_bt_verific_visibilidade(True)
                 return
        
@@ -175,8 +176,8 @@ class Execute(Ui_Interface):
                             continue
                         try:
                             await self.navegador.gerar_guia(cnpj=value["CNPJ RET"], periodo_apuracao=self.file_manipulate.periodo_apuracao, valor=value["Valor"])
-                            await self.file_manipulate.record_return(address=value["RPA_report"], value="Concluido")
-                            await self.file_manipulate.renomear_arquivo_recente(download_path=self.navegador.download_path, empresa=value['Empresa'], divisao=value['Divisão'], valor=value['Valor'], tipo=value['Tipo'])
+                            #await self.file_manipulate.record_return(address=value["RPA_report"], value="Concluido")
+                            await FilesManipulate.renomear_arquivo_recente(download_path=self.navegador.download_path, empresa=value['Empresa'], divisao=value['Divisão'], valor=value['Valor'], tipo=value['Tipo'])
                             print(P(f"{value["CNPJ RET"]} - foi concluido", color="green"))
                             break
                         except TimeoutException as error:

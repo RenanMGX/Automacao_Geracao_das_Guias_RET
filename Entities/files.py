@@ -89,19 +89,17 @@ class FilesManipulate():
         self.final_column:str = "AG"
         #########################
         
-        
         if (value:=re.search(r'[0-9]{6}', self.ws.name)):
             self.__periodo_apuracao:str = value.group()
         else:
             raise PeriodoApuracaoNotFound(f"não foi possivel identifica o periodo de apuração pelo nome da sheet '{self.ws.name}'")
         
-        
         range_cells:Range = self.ws.range(f"{self.initial_column}{self.initial_line}:{self.final_column}{self.final_line}")
-        
         
         cell_negatives:list = []
         count_none:int = 0
         columns_alimentar:Dict[str,list] = {"GIA4":[], "GIA1":[]}
+        
         for row in range_cells.rows:
             row:Range
             if count_none > 10:
@@ -118,14 +116,22 @@ class FilesManipulate():
                 for cell in row.columns:
                     cell:Range
                     if cell.value:
-                        if cell.api.Interior.Color == 11323383.0:
+                        # 11323383.0 <----- vermelho
+                        # 10675893.0 <----- verde
+                        if cell.api.Interior.Color != 10675893.0:
                             try:
                                 if cell.value > 0:
                                     cell.value = -float(cell.value)
                                     cell_negatives.append(cell.address)
                             except:
                                 pass
-        
+                        else:
+                            try:
+                                if cell.value < 0:
+                                    cell.value = -float(cell.value)
+                                    #cell_negatives.append(cell.address)
+                            except:
+                                pass
         
         self.ws.range(f"AF{self.initial_line}").value = "RPA_report - Guia 4%"
         self.ws.range(f"AF{self.initial_line+1}").value = [[addr] for addr in columns_alimentar["GIA4"]]
@@ -141,7 +147,6 @@ class FilesManipulate():
             if cell.value:
                 cell.value = -cell.value
         
-        #import pdb; pdb.set_trace()  
         self.ws.range(f'AF15:AF{self.final_line}').value = ""
         self.ws.range(f'AG15:AG{self.final_line}').value = ""
               
@@ -193,8 +198,9 @@ class FilesManipulate():
                 raise Exception(f"o arquivo precisa ser iniciado executando o metodo '{self.__class__.__name__}.read_excel()'")
         else:
             raise Exception(f"{address=} não é valido")
-        
-    async def renomear_arquivo_recente(self, *, download_path:str, empresa:str, divisao:str, valor:str, tipo:str):
+    
+    @staticmethod
+    async def renomear_arquivo_recente(*, download_path:str, empresa:str, divisao:str, valor:str, tipo:str):
         for num_tentativas in range(15*60):
             if os.path.exists(download_path):
                 ultimo_arquivo_baixado:str = max([os.path.join(download_path, file) for file in os.listdir(download_path)], key=os.path.getctime)
