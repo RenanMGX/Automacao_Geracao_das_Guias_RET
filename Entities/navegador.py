@@ -94,6 +94,7 @@ class SicalcReceita:
             return self.__nav
         except AttributeError:
             raise Exception(f"o navegador precisa ser iniciado executando o metodo '{self.__class__.__name__}.start()'")
+        
     @nav.deleter
     def nav(self) -> None:
         try:
@@ -106,7 +107,7 @@ class SicalcReceita:
         return self.__download_path
         
         
-    async def start(self, *, initial_page:str="https://sicalc.receita.economia.gov.br/sicalc/rapido/contribuinte", restart_page:bool=False) -> bool:
+    async def start(self, *, initial_page:str="https://sicalc.receita.economia.gov.br/sicalc/rapido/contribuinte", restart_page:bool=False, speak:bool=True) -> bool:
         try:
             self.__nav            
             if restart_page:
@@ -116,7 +117,7 @@ class SicalcReceita:
                     except TimeoutException:
                         await asyncio.sleep(1)
                 return True
-            print(P("O navegador já esta aberto!", color='red'))
+            print(P("O navegador já esta aberto!", color='red')) if speak else None
             return False
         except AttributeError:
             print(P("Abrindo Navegador", color='blue'))
@@ -133,7 +134,7 @@ class SicalcReceita:
                     try:
                         os.unlink(file)
                     except:
-                        await Logs(self.__class__.__name__).register(status='Error',description='erro ao apagar arquivo', exception=traceback.format_exc())
+                        asyncio.create_task(Logs(self.__class__.__name__).register(status='Error',description='erro ao apagar arquivo', exception=traceback.format_exc()))
             
         except AttributeError:
             raise Exception(f"o navegador precisa ser iniciado executando o metodo '{self.__class__.__name__}.start()'")
@@ -194,7 +195,9 @@ class SicalcReceita:
     async def fechar(self) -> None:
         self.nav.close()
         del self.nav
-        
+
+    async def refresh_pagina(self):
+        self.nav.refresh()        
         
     async def gerar_guia(self , *, cnpj:str, periodo_apuracao:str, valor:str, tempo_espera:int|float=0):
         if not (valid:=re.search(r'[0-9]{2}.[0-9]{3}.[0-9]{3}/[0-9]{4}-[0-9]{2}', cnpj)):
@@ -346,12 +349,17 @@ class SicalcReceita:
                     self.nav.switch_to.window(janelas[0])
                     continue
                 try:
-                    self.nav.find_element(By.ID, 'error-information-popup-content')
+                    for _ in range(3):
+                        self.nav.find_element(By.ID, 'error-information-popup-content')
+                        #self.nav.close()
+                        self.nav.refresh()
+                        await asyncio.sleep(5)
+                        #self.nav.switch_to.window(janelas[0])
                     self.nav.close()
                     self.nav.switch_to.window(janelas[0])
-                    raise TimeoutException("nova aba não carregou")
+                    raise InvalidSessionIdException("nova aba não carregou")
                 except:
-                    pass
+                    self.nav.switch_to.window(janelas[0])
                 
                 self.nav.switch_to.window(janelas[0])
             

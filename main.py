@@ -167,52 +167,67 @@ class Execute(Ui_Interface):
             await self.navegador.limpar_pasta_download()
             await self.pg02_bt_verific_visibilidade(False)
             await self.pg02_bt_iniciar_visibilidade(False)
-            try:
                 #await self.file_manipulate.read_excel(self.excel_file.file_path)
-                for row, value in self.file_manipulate.df.iterrows():
-                    erro:Exception
-                    for _ in range(60):
-                        if value["CNPJ RET"] in self.empresas_verificadas_sem_cadastro:
-                            continue
+            for row, value in self.file_manipulate.df.iterrows():
+                erro:Exception
+                for _ in range(60):
+                    if value["CNPJ RET"] in self.empresas_verificadas_sem_cadastro:
+                        continue
+                    try:
+                        await self.navegador.start(speak=False)
+                        await self.navegador.gerar_guia(cnpj=value["CNPJ RET"], periodo_apuracao=self.file_manipulate.periodo_apuracao, valor=value["Valor"])
+                        #await self.file_manipulate.record_return(address=value["RPA_report"], value="Concluido")
+                        await FilesManipulate.renomear_arquivo_recente(download_path=self.navegador.download_path, empresa=value['Empresa'], divisao=value['Divisão'], valor=value['Valor'], tipo=value['Tipo'])
+                        print(P(f"{value["CNPJ RET"]} - foi concluido", color="green"))
+                        break
+                    except Exception as err:
+                        asyncio.create_task(self.log.register(status='Report', description=str(err), exception=traceback.format_exc()))
                         try:
-                            await self.navegador.gerar_guia(cnpj=value["CNPJ RET"], periodo_apuracao=self.file_manipulate.periodo_apuracao, valor=value["Valor"])
-                            #await self.file_manipulate.record_return(address=value["RPA_report"], value="Concluido")
-                            await FilesManipulate.renomear_arquivo_recente(download_path=self.navegador.download_path, empresa=value['Empresa'], divisao=value['Divisão'], valor=value['Valor'], tipo=value['Tipo'])
-                            print(P(f"{value["CNPJ RET"]} - foi concluido", color="green"))
-                            break
-                        except TimeoutException as error:
-                            erro = error
-                            await asyncio.sleep(1)
-                        except NoSuchElementException as error:
-                            erro = error
-                            await asyncio.sleep(1)
-                        except InvalidSessionIdException as error:
-                            erro = error
+                            self.navegador.nav.close()
+                        except:
+                            pass
+                        try:
                             del self.navegador.nav
-                            await self.navegador.start()
-                            await asyncio.sleep(1)   
-                        except JavascriptException as error:
-                            erro = error
-                            await asyncio.sleep(1)                        
-                        except Exception as error:
-                            await self.log.register(status='Error', description="erro ao gerar arquivo", exception=traceback.format_exc())
-                            await asyncio.sleep(1)
-                            erro = error 
-                            #await self.file_manipulate.record_return(address=value["RPA_report"], value=error)
-                            #break
-                        print(P(f"Erro com '{value["CNPJ RET"]}' tentando novamente -> {type(erro)}", color="red"))
-                        erro = Exception("")
+                        except:
+                            pass
+                        await self.navegador.start()
+                        await asyncio.sleep(1)                               
+                        # except TimeoutException as error:
+                        #     erro = error
+                        #     await asyncio.sleep(1)
+                        # except NoSuchElementException as error:
+                        #     erro = error
+                        #     await asyncio.sleep(1)
+                        # except InvalidSessionIdException as error:
+                        #     erro = error
+                        #     del self.navegador.nav
+                        #     await self.navegador.start()
+                        #     await asyncio.sleep(1)   
+                        # except JavascriptException as error:
+                        #     erro = error
+                        #     await asyncio.sleep(1)                        
+                        # except Exception as error:
+                        #     asyncio.create_task(self.log.register(status='Report', description="erro ao gerar arquivo", exception=traceback.format_exc()))
+                        #     await asyncio.sleep(1)
+                        #     erro = error
+                        #     if "Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente" in str(error):
+                        #         print(P("Dechando Navegador e abrindo novamente"))
+                        #         del self.navegador.nav
+                        #         await self.navegador.start()
+                        #         await asyncio.sleep(1)
+                        #     #await self.file_manipulate.record_return(address=value["RPA_report"], value=error)
+                        #     #break
+                        print(P(f"Erro com '{value["CNPJ RET"]}' tentando novamente -> {type(err)}", color="red"))
 
-            finally:
-                await self.pg02_bt_verific_visibilidade(True)
-                #await self.pg02_bt_iniciar_visibilidade(True)
-                await self.file_manipulate.close_excel(save=True)
-                print(P("Fim da Automação!", color='green'))
-                await self.pg02_print_infor(text=f"Fim da Automação!\ntempo de execução: {datetime.now() - tempo_inicio}")
-                print(P(f"tempo de execução: {datetime.now() - tempo_inicio}", color='white'))
-                await self.log.register(status='Concluido', description="execução bem sucedida", exception=traceback.format_exc())
-                self.navegador.nav.close()
-                del self.navegador.nav
+            await self.pg02_bt_verific_visibilidade(True)
+            #await self.pg02_bt_iniciar_visibilidade(True)
+            await self.file_manipulate.close_excel(save=True)
+            print(P("Fim da Automação!", color='green'))
+            await self.pg02_print_infor(text=f"Fim da Automação!\ntempo de execução: {datetime.now() - tempo_inicio}")
+            print(P(f"tempo de execução: {datetime.now() - tempo_inicio}", color='white'))
+            asyncio.create_task(self.log.register(status='Concluido', description="execução bem sucedida"))
+            self.navegador.nav.close()
+            del self.navegador.nav
         asyncio.create_task(async_start(self))
                     
     @staticmethod
